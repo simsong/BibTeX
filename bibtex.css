@@ -1,0 +1,31 @@
+/* css hacks for divpopup demo */
+a.bibtex {
+	text-decoration: none;
+}
+
+a.bibtex div {
+	display: none;
+	position: absolute;
+	border: 1px solid black;
+	background-color: #f0f0f0;
+	color: #000000;
+	font-size: .9em;
+	padding: .8em;
+	opacity: 0.85;
+}
+a.bibtex:hover div {
+	display: block;
+}	
+a.bibtex div:before {
+	content: "Bibtex Informations";
+	display: block;
+	border-bottom: 1px solid #999999;
+	padding-left: 1em;
+	font-weight: bold;
+	margin-bottom: .5em;
+	font-family: georgia, sans-serif;
+	font-style: italic;
+	text-align: right;}
+a.bibtex div span{x
+	display: block;
+	font-weight: bold;}
