@@ -2,9 +2,22 @@
 // This mediawiki ewtension was written using a class developped by Kinh Tieu.
 // I wish to thank him for sharing this code without restrictions.
 // Jean-Yves Didier, November, the 4th 2005.
+// SImson L. Garfinkel, Update for MediaWiki 1.18
 
 include_once 'bibstyle.php';
-include_once 'Image.php';
+
+if ( !defined( 'MEDIAWIKI' ) ) {
+	die( 'This file is a MediaWiki extension, it is not a valid entry point' );
+}
+
+$wgExtensionCredits['parserhook'][] = array(
+       'path' => __FILE__,
+       'name' => 'BibTex',
+       'author' =>'Simson L. Garfinkel', 
+       'url' => 'http://simson.net/wiki/BibTex_Extension', 
+       'description' => 'This extension adds support for the BibTex tag',
+       'version'  => 1.0,
+       );
 
 // First declaration for mediawiki bibtex extension
 $wgExtensionFunctions[] = "wfBibtexExtension";
@@ -21,20 +34,21 @@ function wfBibtexExtension()
      global $wgMessageCache;
      global $wbibmsg;
      $wgParser->setHook( "bibtex", "renderBibtex" );
-     $wgHooks['ParserAfterStrip'][] = 'bibtexHook';
-     $wgMessageCache->addMessages( $wbibmsg );
+     // ParserAfterStrip is now ignored
+     // http://www.mediawiki.org/wiki/Manual:Hooks/ParserAfterStrip 
+     //      $wgHooks['ParserAfterStrip'][] = 'bibtexHook';
+     //      $wgMessageCache->addMessages( $wbibmsg );
 }
-
 
 // a single bibtex entry excluding string definitions
 // beginning of classes developped by Kinh Tieu and modified for our custom needs
 class BibEntry {
      var $type_specifier; // e.g., inproceedings
      var $key_identifier; // e.g., Tieu2001
-     var $fields; // array of field names and field text, e.g., author={Kinh Tieu}
+     var $fields;         // array of field names and field text, e.g., author={Kinh Tieu}
      var $where_published;
      var $publishing_details;
-     var $content; // Unmodified content of bibtex entry for ACM-like popup
+     var $content;        // Unmodified content of bibtex entry for ACM-like popup
 
      function BibEntry($type_specifier,$key_identifier, $cnt) {
 	  $this->content = $cnt;
@@ -58,10 +72,10 @@ class BibEntry {
      }
 
      function get_field($field_name) {
-	  if (array_key_exists($field_name,$this->fields))
+	 if (array_key_exists($field_name,$this->fields)){
 	  	return $this->fields[$field_name];
-	  else
-		return '';
+	 }
+	 return '';
      }
 
      function set_field($field_name,$value) {
@@ -73,7 +87,7 @@ class BibEntry {
      }
 
      function get_abstract() {
-	  return str_replace(array("\n","\"","'"),array('<br/>',"&quot;", "\'"),$this->get_field('abstract'));
+	  return str_replace(array("\n","\"","\'"),array('<br/>',"&quot;", "\'"),$this->get_field('abstract'));
      }
 
      // print bibtex format, for debugging
@@ -94,7 +108,6 @@ class BibEntry {
      // see parse_name()
      function parse_author() {
 	  $author_text=$this->get_field('author');
-
 	  if (!preg_match('/,/',$author_text)) { // not already in comma format
 	       $names=preg_split('/\s+and\s+/',$author_text);
       
@@ -113,11 +126,11 @@ class BibEntry {
 
      // fill in generic fields
      function parse() {
-	     global $wbibtechreport;
-	     global $wbibmastersthesis;
-	     global $wbibphdthesis;
-	     global $wbibunpublished;
-	  $this->parse_author();
+	 global $wbibtechreport;
+	 global $wbibmastersthesis;
+	 global $wbibphdthesis;
+	 global $wbibunpublished;
+	 $this->parse_author();
 
 	  switch (trim($this->type_specifier)) {
 	  case 'inproceedings':
@@ -132,7 +145,7 @@ class BibEntry {
 	       }
 	       break;
 	  case 'article':
-	       $this->where_published=$this->get_field('journal');
+	       $this->where_published=$this->get_field('journal') ;
 	       $this->publishing_details=$this->get_field('volume');
 	       if (''!=$this->get_field('number')) {
 		    $this->publishing_details.='('.$this->fields['number'].')';
@@ -149,7 +162,7 @@ class BibEntry {
 	       $this->where_published=$wbibtechreport;
 	       if ( '' != $this->get_field('type'))
 	       		$this->where_published .= " - ".$this->fields['type'];
-	       $this->where_published .=", ".$this->get_field('institution');//$this->fields['institution'];
+	       $this->where_published .=", ".$this->get_field('institution');
 	       if (''!=$this->get_field('number')) {
 		    $this->publishing_details='('.$this->fields['number'].')';
 	       }
@@ -159,10 +172,10 @@ class BibEntry {
                       $this->where_published = $this->fields['type'];
 		else 
 			$this->where_published=$wbibmastersthesis;
-		$this->where_published .= ", ".$this->get_field('school');//$this->fields['school'];
+		$this->where_published .= ", ".$this->get_field('school');
 	       break;
 	  case 'phdthesis':
-	       $this->where_published=$wbibphdthesis.", ".$this->get_field('school');//$this->fields['school'];
+	       $this->where_published=$wbibphdthesis.", ".$this->get_field('school');
 	       break;
 	  case 'unpublished':
 	       $this->where_published=$wbibunpublished;
@@ -172,19 +185,22 @@ class BibEntry {
 			$this->publishing_details .= "Vol. ".$this->fields['volume'].", ";
 		if ( '' != $this->get_field('edition') )
 			$this->publishing_details .= $this->fields['edition'].", ";
-		$this->publishing_details .= $this->get_field('publisher');//$this->fields['publisher'];
+		$this->publishing_details .= $this->get_field('publisher');
 		break;
 	  }
 	  
-          if ('' != $this->get_field('address'))
-	       $this->publishing_details .= ', '.$this->get_field('address');//$this->fields['address'];
-			  
+          if ('' != $this->get_field('address')){
+	       $this->publishing_details .= ', '.$this->get_field('address');
+	  }
 	  
-          if ('' != $this->get_field('month'))
-	       $this->publishing_details .= ', '.$this->get_field('month');//$this->fields['month'];
+	  $comma = ',';
+          if ('' != $this->get_field('month')){
+	       $this->publishing_details .= ', '.$this->get_field('month');
+	       $comma = ' ';		/* not needed now */
+	  }
 			  
 	  if ('' != $this->get_field('year'))
-	       $this->publishing_details .= ', '.$this->get_field('year');//$this->fields['year'];
+	       $this->publishing_details .= $comma . $this->get_field('year');
 		
      }
 }
@@ -193,6 +209,20 @@ class BibEntry {
 // from a string.
 class BibTex {
      var $entry; // bibtex entry, e.g., @inproceedings,etc.
+
+     function isnum($ch) {
+	 if($ch=='1'){ return true;}
+	 if($ch=='2'){ return true;}
+	 if($ch=='3'){ return true;}
+	 if($ch=='4'){ return true;}
+	 if($ch=='5'){ return true;}
+	 if($ch=='6'){ return true;}
+	 if($ch=='7'){ return true;}
+	 if($ch=='8'){ return true;}
+	 if($ch=='9'){ return true;}
+	 if($ch=='0'){ return true;}
+	 return false;
+     }
 
      // do it character by character
      function get_fields($text) {
@@ -257,6 +287,26 @@ class BibTex {
 		    }
 		    break;
 
+		    // Added by slg to handle numbers
+	       case '0':
+	       case '1':
+	       case '2':
+	       case '3':
+	       case '4':
+	       case '5':
+	       case '6':
+	       case '7':
+	       case '8':
+	       case '9':
+		   $field .= $ch;
+		   while ( ($i < $len) && $this->isnum(substr($text,$i,1))){
+		      $field .= substr($text,$i,1);
+		      ++$i;
+		  }
+		  break;
+
+		    // If we reach default, then there is no quote, so
+		    // this must be a macro or a number
 	       default: // numbers only or predefined string key
 		    $field.='@';
 		    $field.=$ch;
@@ -289,16 +339,22 @@ class BibTex {
 
 	  $fields=$this->get_fields($rest);
 
+	  global $wbibmacros;
 	  foreach ($fields as $field) {
 		  $gruick = preg_split('/\s*=\s*/',$field,2);
 		  if( count($gruick) >= 2)
 		  {
-			  $field_name=$gruick[0];
-			  $field_text=$gruick[1];
-	       //list($field_name,$field_text)=preg_split('/\s*=\s*/',$field,2);
-	       $field_name=trim(strtolower($field_name));
-	       $field_text=trim($field_text);
-	       $this->entry->set_field($field_name,$field_text);
+		      $field_name=$gruick[0];
+		      $field_text=$gruick[1];
+		      //list($field_name,$field_text)=preg_split('/\s*=\s*/',$field,2);
+		      $field_name=trim(strtolower($field_name));
+		      $field_text=trim($field_text);
+		      
+		      if($wbibmacros[$field_text] != ""){
+			  $field_text = $wbibmacros[$field_text];
+		      }
+		      
+		      $this->entry->set_field($field_name,$field_text);
 		  }
 	  }
 	  $this->entry->parse();
@@ -306,17 +362,17 @@ class BibTex {
 
      function allowed($title)
      {
-	  //global $wgUser;
-	  //$groups = $wgUser->getGroups();
-
-	  //if ($title->isRestricted())
-	  //{
-	//	if (in_array("viewrestrict",$groups) || in_array("restrict",$groups))
-	//		return true;
-	//	else
-	//		return false;
-	//  }
-	  return true;
+	 //global $wgUser;
+	 //$groups = $wgUser->getGroups();
+	 
+	 //if ($title->isRestricted())
+	 //{
+	 //	if (in_array("viewrestrict",$groups) || in_array("restrict",$groups))
+	 //		return true;
+	 //	else
+	 //		return false;
+	 //  }
+	 return true;
      }
 
      function html(){
@@ -335,17 +391,20 @@ class BibTex {
 
 	  // for things only needed once
   	  if ( (count($bibtexArray) == 0) && $wbib_allowdivpopup)
-	       $output .= '<link rel="stylesheet" type="text/css" href="'.$wgScriptPath.'/extensions/BibTex/bibtex.css" />'."\n";
+	       $output .= '<link rel="stylesheet" type="text/css" href="'
+  	               . $wgScriptPath.'/extensions/BibTex/bibtex.css" />'."\n";
 	  
 	  // Writing the beginning of the entry
+
 	  if ( $entry->get_field('author') != '')
-	 	 $output .= "<i>".$entry->get_field('author')."</i> - ";
+	      $output .= "<i>" . $entry->get_field('author') . "</i> - ";
 	  else
-	  	$output .= "<i>".$entry->get_field('editor')."</i> - ";
+	      $output .= "<i>" . $entry->get_field('editor') . "</i> - ";
 		
-	  $output .= "<b>";
-	  $output .= $entry->get_field('title')."</b><br/>";
-	  $output .= '<dl><dd>'.$entry->get_where_published().' ';
+	  $output .= "<b>" . $entry->get_field('title') . "</b><br/>";
+
+	  $output .= '<dl><dd>' . $entry->get_where_published() . ' ';
+
 	  $output .= $entry->get_publishing_details()."</dd><dd>";
 	  // Checking if pdf file is there
 	  if ( '' != $entry->get_field('pdf')) {
@@ -368,9 +427,9 @@ class BibTex {
 		}
 	  }
 	  // Checking for url
-	  if ( '' != $entry->get_field('url')) 
-	  {
-	       $output .= '<a href="'.$entry->get_field('url').'">Url</a>';	
+	  if ( '' != $entry->get_field('url')) {
+	      $url = $entry->get_field('url');
+	       $output .= '<a href="' . $url  . '">' . $url . '</a><br>';	
 	  }
 
 	  global $wbibauthor,$wbibtitle,$wbibin,$wbibaddress,$wbibdate;
@@ -378,18 +437,15 @@ class BibTex {
 
 	  // This for a div popup demonstration
 	  $shouldlink = $wbib_allowdivpopup || ($wbib_allowbibpopup && $wbib_usejavascript) ;
-	  if ($shouldlink)
-	  {
+	  if ($shouldlink) {
 	       $output .= '<a class="bibtex" href="';
-	       if ($wbib_allowbibpopup && $wbib_usejavascript)
-	       {
+	       if ($wbib_allowbibpopup && $wbib_usejavascript) {
 		    $output .= "javascript:bibpopup('".$entry->get_content()."')\">Bibtex";
 	       }
 	       else
 		    $output .= '#">Bibtex';
 
-	       if ($wbib_allowdivpopup)
-	       {
+	       if ($wbib_allowdivpopup) {
 		    $output .= "<div>";
 		    $output .= "<b>$wbibauthor : </b>".$entry->get_field('author')."<br/>";
 		    $output .= "<b>$wbibtitle : </b>".$entry->get_field('title')."<br/>";
@@ -399,10 +455,6 @@ class BibTex {
 		    $output .= "</div>";
 	       }
 	       $output .= "</a>";
-	       if ( '' != $entry->get_field('abstract'))
-	       {
-		       $output .= '<a href="javascript:abstractpopup('."'".$entry->get_abstract()."')\"> Abstract</a>";
-	       }
   	  }
 	  $output .= "</dd></dl>";
 	  return $output;
@@ -436,38 +488,34 @@ function displayBibtexEntry($entry)
 
      $output = "<br/><tt>@$entry {\n<br/><dl>";
 
-     foreach($wfBibtexEntries[$entry] as $field)
-	  {
-	       if ( substr($field,0,3) == "OPT")
-	       {
-		    $output .= '<dd><span style="color:green;">'.substr($field,3).'</span> = {}, </dd>';
-	       }
-	       else
-	       {
-		    if ( substr($field,0,3) == "ALT")
-		    {
-			 $output .= '<dd><span style="color:red;">'.substr($field,3).'</span> = {}, </dd>';
-		    }
-		    else
-			 $output .= '<dd>'.$field.' = {}, </dd>'; 
-	       }
-	       $jsedit .=  "  ".str_pad($field,16)." = {}, \\n";
-	  }
-     foreach($wfBibtexEntries['options'] as $field)
-	  {
-	       $output .= '<dd><span style="color:green;">'.substr($field,3).'</span> = {}, </dd>';
-	  } 
+     foreach($wfBibtexEntries[$entry] as $field) {
+	 if ( substr($field,0,3) == "OPT") {
+	     $output .= '<dd><span style="color:green;">'.substr($field,3).'</span> = {}, </dd>';
+	 }
+	 else {
+	     if ( substr($field,0,3) == "ALT") {
+		 $output .= '<dd><span style="color:red;">'.substr($field,3).'</span> = {}, </dd>';
+	     }
+	     else {
+		 $output .= '<dd>'.$field.' = {}, </dd>';
+	     }
+	 }
+	 $jsedit .=  "  ".str_pad($field,16)." = {}, \\n";
+     }
+
+
+     foreach($wfBibtexEntries['options'] as $field) {
+	 $output .= '<dd><span style="color:green;">'.substr($field,3).'</span> = {}, </dd>';
+     } 
      $output .= "</dl> }</tt><br/>\n";
 
-     if ( $wbib_usejavascript)
-     {
+     if ( $wbib_usejavascript) {
 	  $jsedit = textareaBibtexContent($entry);
 	  $link = '<a href="javascript:bibfilltextarea('."'".$jsedit."'".')">';
 	  $output .= wfMsg( 'bibtex_click_here', $link, "</a>");
      }
-     else
-     {
-	  $output .= wfMsg( 'bibtex_copypaste' );
+     else {
+	 $output .= wfMsg( 'bibtex_copypaste' );
      }
 	
      return $output;
@@ -480,24 +528,22 @@ function displayBibtexTypes()
      global $wbib_usejavascript;
      $output = wfMsg('bibtex_available_types');
      $output .= "<ul>\n";
-     if ($wbib_usejavascript)
-     {
-	  foreach( $wfBibtexTypes as $type )
-	       {
-		    $output .= '<li><a href="javascript:bibfilltextarea('."'".textAreaBibtexContent($type)."'".')">@'.$type."</a></li>\n";
-	       }
+     if ($wbib_usejavascript) {
+	  foreach( $wfBibtexTypes as $type ) {
+	      $output .= '<li><a href="javascript:bibfilltextarea('."'".textAreaBibtexContent($type)."'".')">@'.$type."</a></li>\n";
+	  }
      }
-     else
-     {
-	  foreach( $wfBibtexTypes as $type )
-	       {
-		    $output .= "<li>@$type</li>\n";
-	       }
+     else {
+	 foreach( $wfBibtexTypes as $type ) {
+	     $output .= "<li>@$type</li>\n";
+	 }
      }
+     if ( $entry->get_field('abstract'!=''  )) {
+              $output .= "ugh <i><small>" . $entry->get_field('abstract') . "</small></i>";
+     }
+
      $output .="</ul>\n";
-     if ($wbib_usejavascript)
-	  $output .= wfMsg('bibtex_click_type')."<br/>";
-	
+     if ($wbib_usejavascript) $output .= wfMsg('bibtex_click_type')."<br/>";
      return $output;
 }
 
@@ -514,10 +560,7 @@ function renderBibtex( $input, $argv=0 )
      if ((count($bibtexArray) == 0) && $wbib_usejavascript)
 	  $output .= '<script language="javascript" src="'.$wgScriptPath.'/extensions/BibTex/bibtex.js"></script>'."\n";	
 
-     
-     
-     if (preg_match('/^\s*$/', $input) )
-     {	     
+     if (preg_match('/^\s*$/', $input) ) {	     
 	  $output .= wfMsg( 'bibtex_empty')."\n";
 	  $output .= displayBibtexTypes();
 	  $output .= wfMsg( 'bibtex_help_type')."\n";
@@ -525,24 +568,21 @@ function renderBibtex( $input, $argv=0 )
      }
 
      // display help message when clicking on preview button
-     if (strtolower(trim($input)) == '@help')
-     {
+     if (strtolower(trim($input)) == '@help') {
 	  $output .= displayBibtexTypes();
 	  $output .= wfMsg( 'bibtex_help_type')."\n";
 	  return $output;
      }
 
      // display field help for entries according to selected entry
-     foreach($wfBibtexTypes as $type)
-	  {
-	       if (strtolower(trim($input)) == '@'.$type)
-	       {
-		    $output .= wfMsg( 'bibtex_help_entry', $type);
-		    $output .= displayBibtexEntry($type);
+     foreach($wfBibtexTypes as $type) {
+	 if (strtolower(trim($input)) == '@'.$type) {
+	     $output .= wfMsg( 'bibtex_help_entry', $type);
+	     $output .= displayBibtexEntry($type);
 		
-		    return $output;
-	       }
-	  }
+	     return $output;
+	 }
+     }
 		  
      // if nothing of the conditions above, juste display the bibtex entry.
      $b = new BibTex($input);
@@ -550,7 +590,6 @@ function renderBibtex( $input, $argv=0 )
      
      return $output;
 }
-
 
 // special dirty hook to link the page being rendered to media so that
 // they don't appear in a whatever orphan special page.
@@ -568,6 +607,7 @@ function bibtexHook(&$parser , &$text, &$strip)
 	  $links .= "</span>\n";
 	  $text .= $links;
      }
+     return true;
 }
 
 ?>
