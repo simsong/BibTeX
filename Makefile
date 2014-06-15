@@ -1,4 +1,4 @@
-RELEASE=1.0.0
+RELEASE=1.0.1
 FILES=ChangeLogs.txt Makefile README.txt bibstyle.php bibtex.css bibtex.js bibtex.php
 
 release:
